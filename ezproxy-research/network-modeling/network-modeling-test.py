@@ -42,8 +42,9 @@ for item in DOIs:
 		if "message" in journals:
 			pass
 		elif type(journals) == type(list()):
-			if journals[0]["message"]["ISSN"] == journals[1]["message"]["ISSN"]:
-				journals = journals[0]
+			journals = journals[0]
+		else:
+			continue
 		print(journals)
 		print("Journal Title: " + journals["message"]["title"])
 		print("Subjects: " + str(journals["message"]["subjects"]))
