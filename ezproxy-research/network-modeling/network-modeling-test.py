@@ -14,14 +14,14 @@ def convert_json(blob):
     return json.loads(blob.decode())
 
 def build_graph(data):
-	
+	pass
 
 sqlite3.register_adapter(dict, adapt_json)
 sqlite3.register_adapter(list, adapt_json)
 sqlite3.register_adapter(tuple, adapt_json)
 sqlite3.register_converter('JSON', convert_json)
 
-conn = sqlite3.connect("ezproxy-DOI.db")
+conn = sqlite3.connect("../ezproxy-DOI.db")
 sqlite_cursor = conn.cursor()
 
 journals = Journals()
@@ -44,6 +44,7 @@ for item in DOIs:
 		elif type(journals) == type(list()):
 			if journals[0]["message"]["ISSN"] == journals[1]["message"]["ISSN"]:
 				journals = journals[0]
+		print(journals)
 		print("Journal Title: " + journals["message"]["title"])
 		print("Subjects: " + str(journals["message"]["subjects"]))
 	except HTTPError:
