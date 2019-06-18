@@ -4,7 +4,6 @@ from habanero import Crossref
 from pprint import pprint
 from requests.exceptions import HTTPError
 
-
 cr = Crossref(mailto = "htw2116@columbia.edu")
 
 def adapt_json(data):
