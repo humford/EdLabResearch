@@ -44,7 +44,7 @@ for item in DOIs:
 			journals = journals[0]
 		else:
 			continue
-		print(journals)
+		#print(journals)
 		print("Journal Title: " + journals["message"]["title"])
 		print("Subjects: " + str(journals["message"]["subjects"]))
 	except HTTPError:
