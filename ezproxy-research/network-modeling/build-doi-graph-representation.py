@@ -311,21 +311,21 @@ def build_network_graph(network_graph, DOIs):
 	print("Network built.")
 
 vertex_dict = {"paper" : {}, "journal" : {}, "subject" : {}}
-#network_graph = create_network_graph()
-citation_graph = create_citation_graph()
+network_graph = create_network_graph()
+#citation_graph = create_citation_graph()
 
-data = DOIs[1:10000:1]
+data = DOIs[::1]
 total = len(data)
 counter = 1
 
 filename = input("Graph Filename [***].gt: ") + ".gt"
 
 spinner = Halo(text = "Building network...", spinner = "runner", text_color = "red")
-#build_network_graph(network_graph, data)
-build_citation_graph(citation_graph, data)
+build_network_graph(network_graph, data)
+#build_citation_graph(citation_graph, data)
 
-#network_graph.save("./tmp/" + filename)
-citation_graph.save("./tmp/" + filename)
+network_graph.save("./tmp/" + filename)
+#citation_graph.save("./tmp/" + filename)
 
 
 
