@@ -246,6 +246,11 @@ def process_paper(network_graph, DOI, cr):
 		update_progress(message, "fail")
 		counter += 1
 		return
+	except TimeoutError:
+		message = f"TimeoutError ({counter} of {total})"
+		update_progress(message, "fail")
+		counter += 1
+		return
 
 	if not item["message"]["title"]:
 		message = f"Paper {DOI} no title found ({counter} of {total})"
