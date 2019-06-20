@@ -1,3 +1,12 @@
+# Notebooks
+*.ipynb
+
+# Sqlite DBs
+*.db
+
+# Generated Files
+tmp/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
