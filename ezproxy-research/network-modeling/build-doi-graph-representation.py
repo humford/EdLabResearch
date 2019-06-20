@@ -24,8 +24,9 @@ DOIs = [item[0] for item in sqlite_cursor.fetchall()]
 from halo import Halo
 from graph_tool.all import *
 from habanero import Crossref
-from requests.exceptions import HTTPError
+from requests.exceptions import HTTPError, ConnectionError
 from pprint import pprint
+from time import sleep
 
 # AUTHOR ROUTINE
 def create_author_graph(directed = True):
@@ -414,7 +415,28 @@ def process_paper(graph, DOI, cr):
 		try:
 			if not "ISSN" in item["message"]:
 				return
-			journal = cr.journals(ids = item["message"]["ISSN"])
+			
+			try:
+				journal = cr.journals(ids = item["message"]["ISSN"])
+			except HTTPError:
+				sleep(5)
+				message = f"HTTPError ({counter} of {total})"
+				update_progress(message, "fail")
+				counter += 1
+				return
+			except ConnectionError:
+				sleep(5)
+				message = f"ConnectionError ({counter} of {total})"
+				update_progress(message, "fail")
+				counter += 1
+				return
+			except TimeoutError:
+				sleep(5)
+				message = f"TimeoutError ({counter} of {total})"
+				update_progress(message, "fail")
+				counter += 1
+				return
+
 			if "message" in journal:
 				journal = journal["message"]
 			elif type(journal) == type(list()):
@@ -533,7 +555,27 @@ def combined_process_paper(graph, DOI, cr):
 			if not "ISSN" in item["message"]:
 				return
 
-			journal = cr.journals(ids = item["message"]["ISSN"])
+			try:
+				journal = cr.journals(ids = item["message"]["ISSN"])
+			except HTTPError:
+				sleep(5)
+				message = f"HTTPError ({counter} of {total})"
+				update_progress(message, "fail")
+				counter += 1
+				return
+			except ConnectionError:
+				sleep(5)
+				message = f"ConnectionError ({counter} of {total})"
+				update_progress(message, "fail")
+				counter += 1
+				return
+			except TimeoutError:
+				sleep(5)
+				message = f"TimeoutError ({counter} of {total})"
+				update_progress(message, "fail")
+				counter += 1
+				return
+
 			if "message" in journal:
 				journal = journal["message"]
 			elif type(journal) == type(list()):
@@ -598,7 +640,7 @@ for i in range(len(options)):
 
 program = options[int(input("Enter option number: "))]
 
-data = DOIs[::1]
+data = DOIs[:500:1]
 total = len(data)
 counter = 1
 
