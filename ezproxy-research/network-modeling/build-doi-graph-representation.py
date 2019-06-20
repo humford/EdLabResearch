@@ -25,25 +25,167 @@ from halo import Halo
 from graph_tool.all import *
 from habanero import Crossref
 from requests.exceptions import HTTPError
+from pprint import pprint
 
+# AUTHOR ROUTINE
+def create_author_graph(directed = True):
+	graph = Graph(directed = directed)
+	# ID
+	# types: DOI, ISSN, ASJC code, ORCID
+	item_id = graph.new_vertex_property("string")
+	graph.vp.id = item_id
+
+	# Name
+	# types: paper title, journal name, subject name, author name
+	item_name = graph.new_vertex_property("string")
+	graph.vp.name = item_name
+
+	# Type
+	# types: author (3), paper (2), journal (1), subject (0)
+	item_type = graph.new_vertex_property("int")
+	graph.vp.type = item_type
+
+	# Author Type
+	# types: first (1), additional (0)
+	item_author_type = graph.new_edge_property("int")
+	graph.ep.author_type = item_author_type
+
+	# Author Info
+	# types: dictionary of author info from API
+	item_author_info = graph.new_vertex_property("object")
+	graph.vp.author_info = item_author_info
+
+	return graph
+
+def process_authors(graph, authors):
+	global vertex_dict
+
+	author_vertices = []
+
+	for author in authors:
+		if "given" in author and "family" in author:
+			author_name = author["given"] + " " + author["family"]
+		elif "given" in author:
+			author_name = author["given"] 
+		elif "family" in author:
+			author_name = author["family"]
+
+		if author_name in vertex_dict["author"]:
+			author_index = vertex_dict["author"][author_name]
+			author_vertex = graph.vertex(author_index)
+			author_vertices.append(author_index)
+
+			message = "Author " + author_name + " found in network."
+			update_progress(message, "found")
+		else:
+			author_vertex = graph.add_vertex()
+			if "ORCID" in author:
+				graph.vp.id[author_vertex] = author["ORCID"]
+			graph.vp.name[author_vertex] = author_name
+			graph.vp.type[author_vertex] = 3
+			graph.vp.author_info[author_vertex] = author
+
+			vertex_dict["author"][author_name] = int(author_vertex)
+			author_vertices.append(author_vertex)
+
+			message = "Author " + author_name + " inserted into network."
+			update_progress(message, "inserted")
+	return author_vertices
+
+def process_author_paper(graph, DOI, cr):
+	global vertex_dict
+	global total
+	global counter
+
+	try:
+		item = cr.works(ids = DOI)
+	except HTTPError:
+		message = f"HTTPError ({counter} of {total})"
+		update_progress(message, "fail")
+		counter += 1
+		return
+	except TimeoutError:
+		message = f"TimeoutError ({counter} of {total})"
+		update_progress(message, "fail")
+		counter += 1
+		return
+
+	if not item["message"]["title"]:
+		message = f"Paper {DOI} no title found ({counter} of {total})"
+		update_progress(message, "fail")
+		counter += 1
+		return
+	title = item["message"]["title"][0]
+
+	if not "author" in item["message"]:
+		message = f"Paper {DOI} no authors found ({counter} of {total})"
+		update_progress(message, "fail")
+		counter += 1
+		return
+	elif not item["message"]["author"]:
+		message = f"Paper {DOI} no authors found ({counter} of {total})"
+		update_progress(message, "fail")
+		counter += 1
+		return
+	authors = item["message"]["author"]
+
+	if DOI in vertex_dict["paper"]:
+		message = f"Paper {DOI} found in network. ({counter} of {total})"
+		update_progress(message, "found")
+		counter += 1
+	else:
+		author_vertices = process_authors(graph, authors)
+
+		paper_vertex = graph.add_vertex()
+		graph.vp.id[paper_vertex] = DOI
+		graph.vp.name[paper_vertex] = title
+		graph.vp.type[paper_vertex] = 2
+
+		for author_vertex in author_vertices:
+			author_edge = graph.add_edge(author_vertex, paper_vertex)
+			author = graph.vp.author_info[author_vertex]
+			if author["sequence"] == "first":
+				graph.ep.author_type[author_edge] = 1
+			else:
+				graph.ep.author_type[author_edge] = 0
+
+		vertex_dict["paper"][DOI] = int(paper_vertex)
+		message = f"Paper {DOI} inserted into network. ({counter} of {total})"
+		update_progress(message, "inserted")
+		counter += 1
+
+def build_author_graph(graph, DOIs):
+	global vertex_dict
+	global spinner
+
+	spinner.start()
+
+	cr = Crossref(mailto = "htw2116@columbia.edu")
+
+	for DOI in DOIs:
+		process_author_paper(graph, DOI, cr)
+
+	spinner.succeed("Author network built.")
+
+# CITATION ROUTINE
 def create_citation_graph(directed = True):
-	citation_graph = Graph(directed = directed)
+	graph = Graph(directed = directed)
 	# ID
 	# types: DOI, ISSN, ASJC code
-	item_id = citation_graph.new_vertex_property("string")
-	citation_graph.vp.id = item_id
+	item_id = graph.new_vertex_property("string")
+	graph.vp.id = item_id
 
 	# Name
 	# types: paper title, journal name, subject name
-	item_name = citation_graph.new_vertex_property("string")
-	citation_graph.vp.name = item_name
+	item_name = graph.new_vertex_property("string")
+	graph.vp.name = item_name
 
 	# Type
 	# types: paper (2), journal (1), subject (0)
-	item_type = citation_graph.new_vertex_property("int")
-	citation_graph.vp.type = item_type
+	item_type = graph.new_vertex_property("int")
+	graph.vp.type = item_type
 
-	return citation_graph
+	return graph
 
 def add_paper(graph, DOI, cr):
 	global vertex_dict
@@ -149,23 +291,23 @@ def build_citation_graph(graph, DOIs):
 	spinner.stop()
 
 def create_network_graph():
-	network_graph = Graph()
+	graph = Graph()
 	# ID
 	# types: DOI, ISSN, ASJC code
-	item_id = network_graph.new_vertex_property("string")
-	network_graph.vp.id = item_id
+	item_id = graph.new_vertex_property("string")
+	graph.vp.id = item_id
 
 	# Name
 	# types: paper title, journal name, subject name
-	item_name = network_graph.new_vertex_property("string")
-	network_graph.vp.name = item_name
+	item_name = graph.new_vertex_property("string")
+	graph.vp.name = item_name
 
 	# Type
 	# types: paper (2), journal (1), subject (0)
-	item_type = network_graph.new_vertex_property("int")
-	network_graph.vp.type = item_type
+	item_type = graph.new_vertex_property("int")
+	graph.vp.type = item_type
 
-	return network_graph
+	return graph
 
 def update_progress(message, status):
 	global spinner
@@ -176,9 +318,10 @@ def update_progress(message, status):
 		spinner.info(message)
 	elif status == "fail":
 		spinner.fail(message)
-	spinner.start("Building network...")	 
+	spinner.start("Building network...")
 
-def process_subjects(network_graph, subjects):
+# NETWORK ROUTINE
+def process_subjects(graph, subjects):
 	global vertex_dict
 
 	subject_vertices = []
@@ -186,17 +329,17 @@ def process_subjects(network_graph, subjects):
 	for subject in subjects:
 		if subject["ASJC"] in vertex_dict["subject"]:
 			subject_index = vertex_dict["subject"][subject["ASJC"]]
-			subject_vertex = network_graph.vertex(subject_index)
+			subject_vertex = graph.vertex(subject_index)
 			subject_vertices.append(subject_vertex)
 
 			message = "Subject " + str(subject["ASJC"]) + " found in network."
 			update_progress(message, "found")
 		else:
-			subject_vertex = network_graph.add_vertex()
-			network_graph.vp.id[subject_vertex] = subject["ASJC"]
-			network_graph.vp.name[subject_vertex] = subject["name"]
-			#network_graph.vp.type[subject_vertex] = "subject"
-			network_graph.vp.type[subject_vertex] = 0
+			subject_vertex = graph.add_vertex()
+			graph.vp.id[subject_vertex] = subject["ASJC"]
+			graph.vp.name[subject_vertex] = subject["name"]
+			#graph.vp.type[subject_vertex] = "subject"
+			graph.vp.type[subject_vertex] = 0
 
 			vertex_dict["subject"][subject["ASJC"]] = int(subject_vertex)
 			subject_vertices.append(subject_vertex)
@@ -205,28 +348,32 @@ def process_subjects(network_graph, subjects):
 			update_progress(message, "inserted")
 	return subject_vertices
 
-def process_journal(network_graph, journal):
+def process_journal(graph, journal):
 	global vertex_dict
 
 	subjects = journal["subjects"]
-	subject_vertices = process_subjects(network_graph, subjects)
+	subject_vertices = process_subjects(graph, subjects)
 	ISSN = journal["ISSN"][0]
 
 	if ISSN in vertex_dict["journal"]:
 		journal_index = vertex_dict["journal"][ISSN]
-		journal_vertex = network_graph.vertex(journal_index)
+		journal_vertex = graph.vertex(journal_index)
 
 		message = "Journal " + ISSN + " found in network."
 		update_progress(message, "found")
 	else:
-		journal_vertex = network_graph.add_vertex()
-		network_graph.vp.id[journal_vertex] = ISSN
-		network_graph.vp.name[journal_vertex] = journal["title"][0]
-		#network_graph.vp.type[journal_vertex] = "journal"
-		network_graph.vp.type[journal_vertex] = 1
+		journal_vertex = graph.add_vertex()
+		graph.vp.id[journal_vertex] = ISSN
+		if type(journal["title"]) == type(list()):
+			title = journal["title"][0]
+		else:
+			title = journal["title"]
+		graph.vp.name[journal_vertex] = title
+		#graph.vp.type[journal_vertex] = "journal"
+		graph.vp.type[journal_vertex] = 1
 
 		for subject_vertex in subject_vertices:
-			network_graph.add_edge(journal_vertex, subject_vertex)
+			graph.add_edge(journal_vertex, subject_vertex)
 
 		vertex_dict["journal"][ISSN] = int(journal_vertex)
 
@@ -234,7 +381,7 @@ def process_journal(network_graph, journal):
 		update_progress(message, "inserted")
 	return journal_vertex
 
-def process_paper(network_graph, DOI, cr):
+def process_paper(graph, DOI, cr):
 	global vertex_dict
 	global total
 	global counter
@@ -278,15 +425,15 @@ def process_paper(network_graph, DOI, cr):
 				counter += 1
 				return
 			
-			journal_vertex = process_journal(network_graph, journal)
+			journal_vertex = process_journal(graph, journal)
 
-			paper_vertex = network_graph.add_vertex()
-			network_graph.vp.id[paper_vertex] = DOI
-			network_graph.vp.name[paper_vertex] = title
-			#network_graph.vp.type[paper_vertex] = "paper"
-			network_graph.vp.type[paper_vertex] = 2
+			paper_vertex = graph.add_vertex()
+			graph.vp.id[paper_vertex] = DOI
+			graph.vp.name[paper_vertex] = title
+			#graph.vp.type[paper_vertex] = "paper"
+			graph.vp.type[paper_vertex] = 2
 
-			network_graph.add_edge(paper_vertex, journal_vertex)
+			graph.add_edge(paper_vertex, journal_vertex)
 
 			vertex_dict["paper"][DOI] = int(paper_vertex)
 			message = f"Paper {DOI} inserted into network. ({counter} of {total})"
@@ -298,34 +445,192 @@ def process_paper(network_graph, DOI, cr):
 			counter += 1
 	return
 
-def build_network_graph(network_graph, DOIs):
+def build_network_graph(graph, DOIs):
 	global spinner
 	
 	spinner.start()
 	cr = Crossref(mailto = "htw2116@columbia.edu")
 
 	for DOI in DOIs:
-		process_paper(network_graph, DOI, cr)
+		process_paper(graph, DOI, cr)
 	spinner.stop()
 
 	print("Network built.")
 
-vertex_dict = {"paper" : {}, "journal" : {}, "subject" : {}}
-network_graph = create_network_graph()
-#citation_graph = create_citation_graph()
+# COMBINED ROUTINE	 
+def create_combined_graph(directed = True):
+	graph = Graph(directed = directed)
+	# ID
+	# types: DOI, ISSN, ASJC code, ORCID
+	item_id = graph.new_vertex_property("string")
+	graph.vp.id = item_id
+
+	# Name
+	# types: paper title, journal name, subject name, author name
+	item_name = graph.new_vertex_property("string")
+	graph.vp.name = item_name
+
+	# Type
+	# types: author (3), paper (2), journal (1), subject (0)
+	item_type = graph.new_vertex_property("int")
+	graph.vp.type = item_type
+
+	# Author Type
+	# types: first (1), additional (0)
+	item_author_type = graph.new_edge_property("int")
+	graph.ep.author_type = item_author_type
+
+	# Author Info
+	# types: dictionary of author info from API
+	item_author_info = graph.new_vertex_property("object")
+	graph.vp.author_info = item_author_info
+
+	return graph
+
+def combined_process_paper(graph, DOI, cr):
+	global vertex_dict
+	global total
+	global counter
+
+	try:
+		item = cr.works(ids = DOI)
+	except HTTPError:
+		message = f"HTTPError ({counter} of {total})"
+		update_progress(message, "fail")
+		counter += 1
+		return
+	except TimeoutError:
+		message = f"TimeoutError ({counter} of {total})"
+		update_progress(message, "fail")
+		counter += 1
+		return
+
+	if not item["message"]["title"]:
+		message = f"Paper {DOI} no title found ({counter} of {total})"
+		update_progress(message, "fail")
+		counter += 1
+		return
+	title = item["message"]["title"][0]
+
+	if not "author" in item["message"]:
+		message = f"Paper {DOI} no authors found ({counter} of {total})"
+		update_progress(message, "fail")
+		counter += 1
+		return
+	elif not item["message"]["author"]:
+		message = f"Paper {DOI} no authors found ({counter} of {total})"
+		update_progress(message, "fail")
+		counter += 1
+		return
+	authors = item["message"]["author"]
+
+	if DOI in vertex_dict["paper"]:
+		message = f"Paper {DOI} found in network. ({counter} of {total})"
+		update_progress(message, "found")
+		counter += 1
+	else:
+		try:
+			if not "ISSN" in item["message"]:
+				return
+
+			journal = cr.journals(ids = item["message"]["ISSN"])
+			if "message" in journal:
+				journal = journal["message"]
+			elif type(journal) == type(list()):
+				journal = journal[0]["message"]
+			else:
+				message = f"No journal found for paper {DOI}. ({counter} of {total})"
+				update_progress(message, "fail")
+				counter += 1
+				return
+			
+			journal_vertex = process_journal(graph, journal)
+			author_vertices = process_authors(graph, authors)
+
+			paper_vertex = graph.add_vertex()
+			graph.vp.id[paper_vertex] = DOI
+			graph.vp.name[paper_vertex] = title
+			graph.vp.type[paper_vertex] = 2
+
+			graph.add_edge(paper_vertex, journal_vertex)
+
+			for author_vertex in author_vertices:
+				author_edge = graph.add_edge(author_vertex, paper_vertex)
+				author = graph.vp.author_info[author_vertex]
+				if author["sequence"] == "first":
+					graph.ep.author_type[author_edge] = 1
+				else:
+					graph.ep.author_type[author_edge] = 0
+
+			vertex_dict["paper"][DOI] = int(paper_vertex)
+			message = f"Paper {DOI} inserted into network. ({counter} of {total})"
+			update_progress(message, "inserted")
+			counter += 1
+		except HTTPError:
+			message = f"HTTPError ({counter} of {total})"
+			update_progress(message, "fail")
+			counter += 1
+	return
+
+def build_combined_graph(graph, DOIs):
+	global vertex_dict
+	global spinner
+
+	spinner.start()
+	cr = Crossref(mailto = "hwill12345@gmail.com")
+
+	for DOI in DOIs:
+		combined_process_paper(graph, DOI, cr)
+
+	spinner.succeed("All papers inserted")
+	spinner.start("Building citation edges...")
+
+	for DOI in vertex_dict["paper"]:
+		process_citations(graph, DOI, cr)
+
+	spinner.stop()
+
+options = ["network", "citation", "author", "combined"]
+
+print("Runtime Options Available")
+for i in range(len(options)):
+	print(str(i) + " - " + options[i])
+
+program = options[int(input("Enter option number: "))]
 
 data = DOIs[::1]
 total = len(data)
 counter = 1
 
+vertex_dict = {"paper" : {}, "journal" : {}, "subject" : {}, "author" : {}}
 filename = input("Graph Filename [***].gt: ") + ".gt"
-
 spinner = Halo(text = "Building network...", spinner = "runner", text_color = "red")
-build_network_graph(network_graph, data)
-#build_citation_graph(citation_graph, data)
 
-network_graph.save("./tmp/" + filename)
-#citation_graph.save("./tmp/" + filename)
+if program == "network":
+	print("Running network program.")
+
+	network_graph = create_network_graph()
+	build_network_graph(network_graph, data)
+	network_graph.save("./tmp/" + filename)
+elif program == "citation":
+	print("Running citation program.")
+
+	citation_graph = create_citation_graph()
+	build_citation_graph(citation_graph, data)
+	citation_graph.save("./tmp/" + filename)
+elif program == "author":
+	print("Running author program.")
+
+	author_graph = create_author_graph()
+	build_author_graph(author_graph, data)
+	author_graph.save("./tmp/" + filename)
+elif program == "combined":
+	print("Running combined program.")
+
+	combined_graph = create_combined_graph()
+	build_combined_graph(combined_graph, data)
+	combined_graph.save("./tmp/" + filename)
+
 
 
 
