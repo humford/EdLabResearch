@@ -1,5 +1,6 @@
 # FROM python:3.7
 FROM ubuntu:latest
+ARG DEBIAN_FRONTEND=noninteractive
 
 ADD . /
 
