@@ -640,7 +640,7 @@ for i in range(len(options)):
 
 program = options[int(input("Enter option number: "))]
 
-data = DOIs[:500:1]
+data = DOIs[::1]
 total = len(data)
 counter = 1
 

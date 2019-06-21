@@ -22,21 +22,21 @@ def get_graph_from_folder():
 
 graph = get_graph_from_folder()
 
-#graph = extract_largest_component(graph, directed = False, prune = True)
+graph = extract_largest_component(graph, directed = False, prune = True)
 
 edge_list = graph.get_edges(
-	#eprops = [graph.ep.author_type]
+	# eprops = [graph.ep.author_type]
 )
 
-for edge in edge_list:
-	edge[2] += 1
+# for edge in edge_list:
+# 	edge[2] += 1
 
 display={
     "nodes" : {},
     'metadata' : {
-        'type' : {
-            'categories' : ['subject', 'journal', 'paper', 'author'],
-        },
+        # 'type' : {
+        #     'categories' : ['subject', 'author', 'journal', 'paper'],
+        # },
     },
 }
 
@@ -47,7 +47,7 @@ for v in graph.get_vertices():
     node_values = {
         "id" : graph.vp.id[v],
         "name" : graph.vp.name[v],
-        "type" : graph.vp.type[v],
+        "type" : categories[graph.vp.type[v]],
         "type_size" : size[graph.vp.type[v]],
     }
     display["nodes"][v] = node_values
