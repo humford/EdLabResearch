@@ -74,6 +74,21 @@ def draw_best_partition(graph, filename = "bestpartition.pdf"):
 			output = f"./tmp/{filename}"
 		)
 
+def draw_condensation_graph(graph, filename = "condensation.pdf"):
+	with Halo(text="Calculating partition...", text_color = "blue", spinner = "moon"):
+		state = BlockState(graph, B = 5, deg_corr = True)
+		mcmc_equilibrate(state, wait = 1000)
+		b = state.get_blocks()
+	with Halo(text='Drawing visuals...', text_color = "red", spinner='bouncingBall'):
+		graph_draw(
+			graph,
+			vertex_fill_color = b,
+			vertex_shape = b,
+			vertex_size = 1,
+			edge_pen_width = 0.5,
+			output = f"./tmp/{filename}"
+		)
+
 # Draw closeness
 def draw_closeness(graph, filename = "closeness.pdf"):
 	graph = GraphView(graph, vfilt = label_largest_component(graph))
@@ -216,10 +231,6 @@ def draw_graphviz_visual(graph, filename):
 def graphviz_routine(graph):
 	draw_graphviz_visual(graph, input("Graphviz filename: "))
 
-# Create condensation graph
-def draw_condensation_graph():
-	pass
-
 #vertex_size = prop_to_size(
 #	graph.vp.num_members
 #)
@@ -239,8 +250,8 @@ def draw_condensation_graph():
 graph = get_graph_from_folder()
 #graph = clear_empty_vertices(graph)
 graph = extract_largest_component(graph, directed = False, prune = True)
-graph = add_size_by_type(graph)
-plain_visual_routine(graph, type_size = True)
+#graph = add_size_by_type(graph)
+draw_condensation_graph(graph)
 
 # with Halo(text='Drawing Fruchterman Reingold...', text_color = "green", spinner='dots'):
 # 	pos = fruchterman_reingold_layout(graph, n_iter=1000)

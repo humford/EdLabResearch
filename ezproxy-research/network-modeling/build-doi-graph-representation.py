@@ -70,6 +70,8 @@ def process_authors(graph, authors):
 			author_name = author["given"] 
 		elif "family" in author:
 			author_name = author["family"]
+		else:
+			continue
 
 		if author_name in vertex_dict["author"]:
 			author_index = vertex_dict["author"][author_name]
