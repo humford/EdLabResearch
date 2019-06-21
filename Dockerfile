@@ -8,8 +8,8 @@ RUN apt-get update
 RUN apt-get install -y software-properties-common
 RUN apt-get install -y python3
 RUN apt-get install -y python3-pip
-RUN pip install numpy
-RUN pip install -r requirements.txt
+RUN pip3 install numpy
+RUN pip3 install -r requirements.txt
 
 RUN apt-get update 
 RUN apt-get install -y gnupg2
