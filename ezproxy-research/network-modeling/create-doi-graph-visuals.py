@@ -74,12 +74,33 @@ def draw_best_partition(graph, filename = "bestpartition.pdf"):
 			output = f"./tmp/{filename}"
 		)
 
-def draw_condensation_graph(graph, filename = "condensation.pdf"):
+def draw_condensation_graph(graph, filename = "condensation.pdf", n = 20):
 	with Halo(text="Calculating partition...", text_color = "blue", spinner = "moon"):
-		state = BlockState(graph, B = 5, deg_corr = True)
+		state = BlockState(graph, B = n, deg_corr = True)
 		mcmc_equilibrate(state, wait = 1000)
 		b = state.get_blocks()
 	with Halo(text='Drawing visuals...', text_color = "red", spinner='bouncingBall'):
+		bg, bb, vcount, ecount, avp, aep = condensation_graph(
+			graph,
+			b,
+			avprops = [sfdp_layout(graph)],
+			self_loops = True
+		)
+		pos = avp[0]
+
+		for v in bg.vertices():
+			pos[v].a /= vcount[v]
+
+		graph_draw(
+			bg, 
+			pos = avp[0],
+			vertex_fill_color = bb,
+			vertex_shape = bb,
+			vertex_size = prop_to_size(vcount, mi = 40, ma = 100),
+			edge_pen_width = prop_to_size(ecount, mi = 2, ma = 10),
+			output = "./tmp/blocks_cond.pdf"
+		)
+
 		graph_draw(
 			graph,
 			vertex_fill_color = b,
