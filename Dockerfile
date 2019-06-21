@@ -4,8 +4,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 ADD . /
 
-RUN apt-get update 
-RUN apt-get install -y python-pip
+RUN apt-get update
+RUN apt-get install -y software-properties-common
+RUN apt-get install -y python3
+RUN apt-get install -y python3-pip
 RUN pip install numpy
 RUN pip install -r requirements.txt
 
