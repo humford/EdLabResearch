@@ -3,6 +3,7 @@
 
 # Sqlite DBs
 *.db
+*.db-journal
 
 # Generated Files
 tmp/
