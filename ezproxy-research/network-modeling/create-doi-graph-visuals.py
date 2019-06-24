@@ -209,11 +209,11 @@ def draw_plain_visual(graph, filename, include_id = False, type_size = False):
 	else:
 		vertex_size = 1
 
-	pos = graphviz_draw(graph, vsize=10, overlap=False, output=None)
+	#pos = graphviz_draw(graph, vsize=10, overlap=False, output=None)
 
 	with Halo(text='Drawing visuals...', text_color = "red", spinner='bouncingBall'):
 		graph_draw(graph,
-			pos = pos, 
+			#pos = pos, 
 			edge_pen_width = 0.1,
 			vertex_text = vertex_text,
 			vorder = graph.vp.type,
@@ -272,7 +272,7 @@ graph = get_graph_from_folder()
 #graph = clear_empty_vertices(graph)
 graph = extract_largest_component(graph, directed = False, prune = True)
 #graph = add_size_by_type(graph)
-draw_condensation_graph(graph)
+plain_visual_routine(graph)
 
 # with Halo(text='Drawing Fruchterman Reingold...', text_color = "green", spinner='dots'):
 # 	pos = fruchterman_reingold_layout(graph, n_iter=1000)

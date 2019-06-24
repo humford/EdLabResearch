@@ -337,7 +337,7 @@ def add_link_columns(sqlite_cursor):
 	sqlite_cursor.execute("ALTER TABLE ezproxy_doi ADD COLUMN unspecified_link TEXT DEFAULT NULL")
 	return
 
-def get_DOI_links(DOI):
+def get_DOI_item_links(DOI):
 	links = {"application/pdf" : None, "application/xml" : None, "unspecified" : None}
 	found = False
 	while not found:	
@@ -436,9 +436,6 @@ def add_subjects(sqlite_cursor, conn):
 				sqlite_cursor.execute("INSERT INTO doi_subjects VALUES (?, ?)", (ezproxy_doi_id, subject_id))
 		conn.commit()
 		print(f"Added subjects for {ezproxy_doi_id} of {len(data)}.")
-
-def add_journals_tables():
-	pass
 
 web_resources = {
 	"ebookcentral.proquest.com" : no_convert,
