@@ -5,7 +5,7 @@ library(tidytext)
 library(dplyr)
 library(ggplot2)
 
-conn <- dbConnect(RSQLite::SQLite(), "~/Documents/Ezproxy/ezproxy-DOI.db")
+conn <- dbConnect(RSQLite::SQLite(), "~/Git/EdLabResearch/ezproxy-research/ezproxy-DOI-old.db")
 
 ezproxy_doi <- dbReadTable(conn, "ezproxy_doi")
 subjects <- dbReadTable(conn, "subjects")

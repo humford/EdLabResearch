@@ -305,9 +305,9 @@ def get_DOI_links(data, web_resources):
 	return DOI_links
 
 def get_access_records(mysql_cursor):
-	mysql_cursor.execute("SELECT * FROM ezporxy_spu WHERE datetime > %s", ("2019-06-01",))
+	mysql_cursor.execute("SELECT * FROM ezporxy_spu WHERE datetime > %s", ("2019-01-01",))
 	spu = mysql_cursor.fetchall()
-	mysql_cursor.execute("SELECT * FROM ezproxy_dailylog WHERE datetime > %s", ("2019-06-01",))
+	mysql_cursor.execute("SELECT * FROM ezproxy_dailylog WHERE datetime > %s", ("2019-01-01",))
 	dailylog = mysql_cursor.fetchall()
 
 	return spu, dailylog
@@ -330,7 +330,7 @@ def insert_access_records(mysql_cursor, sqlite_cursor):
 	global web_resources
 	spu, dailylog = get_access_records(mysql_cursor)
 
-	mysql_cursor.execute("SELECT address FROM ezporxy_spu WHERE datetime > %s", ("2019-06-01",))
+	mysql_cursor.execute("SELECT address FROM ezporxy_spu WHERE datetime > %s", ("2019-01-01",))
 	data = mysql_cursor.fetchall()
 	DOI_links = get_DOI_links(data, web_resources)
 
