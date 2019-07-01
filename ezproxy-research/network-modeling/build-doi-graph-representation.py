@@ -481,6 +481,137 @@ def build_network_graph(graph, DOIs):
 
 	print("Network built.")
 
+# USER ROUTINE
+def create_user_graph(directed = True):
+	graph = Graph(directed = directed)
+	# ID
+	# types: DOI, ISSN, ASJC code, ORCID, UNI
+	item_id = graph.new_vertex_property("string")
+	graph.vp.id = item_id
+
+	# Name
+	# types: paper title, journal name, subject name, author name, user name
+	item_name = graph.new_vertex_property("string")
+	graph.vp.name = item_name
+
+	# Type
+	# types: user (4), author (3), paper (2), journal (1), subject (0)
+	item_type = graph.new_vertex_property("int")
+	graph.vp.type = item_type
+
+	# Times Accessed
+	# types: count accessed
+	item_times_accessed = graph.new_edge_property("int")
+	graph.ep.times_accessed = item_times_accessed
+
+	# Vertex Dict
+	# For finding vertices by id
+	item_vertex_dict = graph.new_graph_property("object")
+	graph.gp.vertex_dict = item_vertex_dict
+
+	return graph
+
+def user_process_paper(graph, DOI, cr):
+	global vertex_dict
+
+	try:
+		item = cr.works(ids = DOI)
+	except HTTPError:
+		message = f"HTTPError"
+		update_progress(message, "fail")
+		return None
+	except TimeoutError:
+		message = f"TimeoutError"
+		update_progress(message, "fail")
+		return None
+
+	if not item["message"]["title"]:
+		message = f"Paper {DOI} no title found"
+		update_progress(message, "fail")
+		return None
+	title = item["message"]["title"][0]
+
+	if DOI in vertex_dict["paper"]:
+		message = f"Paper {DOI} found in network."
+		update_progress(message, "found")
+		paper_index = vertex_dict["paper"][DOI]
+		paper_vertex = graph.vertex(paper_index)
+	else:
+		try:
+			paper_vertex = graph.add_vertex()
+			graph.vp.id[paper_vertex] = DOI
+			graph.vp.name[paper_vertex] = title
+			graph.vp.type[paper_vertex] = 2
+
+			vertex_dict["paper"][DOI] = int(paper_vertex)
+			message = f"Paper {DOI} inserted into network."
+			update_progress(message, "inserted")
+		except HTTPError:
+			message = f"HTTPError"
+			update_progress(message, "fail")
+	return paper_vertex
+
+def process_user(graph, uni, cr):
+	global vertex_dict
+	global total
+	global counter
+	global sqlite_cursor
+
+	sqlite_cursor.execute("SELECT ezproxy_user_id FROM ezproxy_users WHERE uni = ?", (uni,))
+	user_id = sqlite_cursor.fetchone()[0]
+
+	sqlite_cursor.execute("SELECT ezproxy_doi_id FROM access_records WHERE ezproxy_doi_id = ?", (user_id,))
+	records = [item[0] for item in sqlite_cursor.fetchall()]
+
+	if uni in vertex_dict["user"]:
+		message = f"User {uni} found in network. ({counter} of {total})"
+		user_vertex = vertex_dict["user"][uni]
+		user_vertex = graph.vertex(user_index)
+		update_progress(message, "found")
+		counter += 1
+	else:
+		user_vertex = graph.add_vertex()
+		graph.vp.id[user_vertex] = uni
+		graph.vp.name[user_vertex] = user_id
+		graph.vp.type[user_vertex] = 4
+
+		vertex_dict["user"][uni] = int(user_vertex)
+		message = f"User {uni} inserted into network. ({counter} of {total})"
+		update_progress(message, "inserted")
+		counter += 1
+
+	for record in records:
+		sqlite_cursor.execute("SELECT doi FROM ezproxy_doi WHERE ezproxy_doi_id = ?", (record,))
+		try:
+			DOI = sqlite_cursor.fetchone()[0]
+		except TypeError:
+			continue
+
+		paper_vertex = user_process_paper(graph, DOI, cr)
+		if paper_vertex:
+			prior_access_edge = graph.edge(user_vertex, paper_vertex)
+			if prior_access_edge:
+				graph.ep.times_accessed[prior_access_edge] += 1
+			else:
+				access_edge = graph.add_edge(user_vertex, paper_vertex)
+				graph.ep.times_accessed[access_edge] = 1
+
+	return
+
+def build_user_graph(graph, users):
+	global vertex_dict
+	global spinner
+
+	spinner.start()
+	cr = Crossref(mailto = "hwill12345@gmail.com")
+
+	for uni in users:
+		process_user(graph, uni, cr)
+
+	spinner.succeed("All users inserted")
+
+	spinner.stop()
+
 # COMBINED ROUTINE	 
 def create_combined_graph(directed = True):
 	graph = Graph(directed = directed)
@@ -634,7 +765,7 @@ def build_combined_graph(graph, DOIs):
 
 	spinner.stop()
 
-options = ["network", "citation", "author", "combined"]
+options = ["network", "citation", "author", "user", "combined"]
 
 print("Runtime Options Available")
 for i in range(len(options)):
@@ -646,7 +777,7 @@ data = DOIs[::1]
 total = len(data)
 counter = 1
 
-vertex_dict = {"paper" : {}, "journal" : {}, "subject" : {}, "author" : {}}
+vertex_dict = {"paper" : {}, "journal" : {}, "subject" : {}, "author" : {}, "user" : {}}
 filename = input("Graph Filename [***].gt: ") + ".gt"
 spinner = Halo(text = "Building network...", spinner = "runner", text_color = "red")
 
@@ -668,6 +799,18 @@ elif program == "author":
 	author_graph = create_author_graph()
 	build_author_graph(author_graph, data)
 	author_graph.save("./tmp/" + filename)
+elif program == "user":
+	print("Running user program.")
+
+	sqlite_cursor.execute("SELECT uni FROM ezproxy_users WHERE uni IS NOT NULL")
+	users = [item[0] for item in sqlite_cursor.fetchall()]
+	data = users[::1]
+
+	total = len(data)
+
+	user_graph = create_user_graph()
+	build_user_graph(user_graph, data)
+	user_graph.save("./tmp/" + filename)
 elif program == "combined":
 	print("Running combined program.")
 
