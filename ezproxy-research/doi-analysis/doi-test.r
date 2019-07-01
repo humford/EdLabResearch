@@ -10,11 +10,24 @@ conn <- dbConnect(RSQLite::SQLite(), "~/Git/EdLabResearch/ezproxy-research/ezpro
 ezproxy_doi <- dbReadTable(conn, "ezproxy_doi")
 subjects <- dbReadTable(conn, "subjects")
 doi_subjects <- dbReadTable(conn, "doi_subjects")
+users <- dbReadTable(conn, "ezproxy_users")
+access_records <- dbReadTable(conn, "access_records")
+
+userdata <- users[which(users$uni == "dnm2133"), "ezproxy_user_id"]
+l <- ezproxy_doi[access_records[which(access_records$ezproxy_user_id == 14), "ezproxy_doi_id"], "title"]
 
 subjectfreqpiedotchart <- function(doi_subjects) {
   piedata <- sort(table(doi_subjects$subject_id), decreasing = T)
   pie(piedata, labels = head(subjects[row.names(piedata),"subject"], 15))
   dotchart(head(piedata,50), labels = head(subjects[row.names(piedata),"subject"], 50), cex = 0.8)
+}
+
+get_dois_for_user <- function(user) {
+  records <- access_records[which(access_records$ezproxy_user_id == which(users$uni == user)), "ezproxy_doi_id"]
+  for (record in records) {
+    i <- doi_subjects[which(doi_subjects$ezproxy_doi_id == record), "subject_id"]
+    i
+  }
 }
 
 library(janeaustenr)
