@@ -1,0 +1,21 @@
+# Example Config File for BiblioNet
+
+DATABASES:
+  EZPROXY_DB:
+    HOST: host url for ezproxy database
+    USER: username for ezproxy database
+    PASSWD: password for ezproxy database
+    DATABASE: name for ezproxy database
+  LIBRARY_SIERRA_DB:
+    HOST: host url for sierra database
+    USER: username for sierra database
+    PASSWD: password for sierra database
+    DATABASE: name for sierra database
+
+OUTPUT:
+  DIRECTORY: path to ouput directory
+  DATABASE: filename of sqlite database
+
+API:
+  GOOGLE_API_KEY: google api key
+  CROSSREF_EMAIL: email registered with crossref
