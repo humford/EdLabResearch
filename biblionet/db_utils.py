@@ -46,3 +46,8 @@ def connect_to_sierra_db():
 		database = library_sierra_db["DATABASE"]
 	)
 	return sierra_conn
+
+# conn = connect_to_ezproxy_db()
+# sqlite_cursor = conn.cursor()
+# sqlite_cursor.execute("SELECT * FROM ezporxy_spu")
+# print(sqlite_cursor.fetchall())

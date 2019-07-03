@@ -369,6 +369,7 @@ def process_user(graph, uni, cr, counter, total, spinner):
 
 # Build a graph based on metadata structure
 def build_structure_graph(graph, DOIs, mode, spinner):
+	global crossref_email
 	global vertex_dict
 	vertex_dict = {"paper" : {}, "journal" : {}, "subject" : {}, "author" : {}}
 
@@ -393,6 +394,7 @@ def build_structure_graph(graph, DOIs, mode, spinner):
 
 # Build a graph based on user access records
 def build_user_graph(graph, users, spinner, cursor):
+	global crossref_email
 	global vertex_dict
 	global sqlite_cursor
 	sqlite_cursor = cursor
@@ -454,5 +456,3 @@ def network_routine():
 		build_structure_graph(graph, data[:10:], program, spinner)
 	graph.save(output_dir + filename)
 	print("Graph saved.")
-
-network_routine()
