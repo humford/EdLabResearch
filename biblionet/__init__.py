@@ -1,1 +1,1 @@
-from .GraphUtil import GraphUtil
+from .graph_utils import GraphUtil
