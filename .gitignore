@@ -2,6 +2,7 @@
 config.json
 config.ini
 config.yaml
+config.py
 
 # Notebooks
 *.ipynb
@@ -12,6 +13,7 @@ config.yaml
 
 # Generated Files
 tmp/
+output/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
