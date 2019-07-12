@@ -1,10 +1,10 @@
 # Import Configuration
-from config import config
+from .config import config
 
 crossref_email = config["API"]["CROSSREF_EMAIL"]
 
 # Import Internal
-from db_utils import *
+from .db_utils import *
 
 # Import External
 import re

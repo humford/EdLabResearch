@@ -752,7 +752,7 @@ def build_combined_graph(graph, DOIs):
 	global spinner
 
 	spinner.start()
-	cr = Crossref(mailto = "hwill12345@gmail.com")
+	cr = Crossref(mailto = "htw2116@columbia.edu")
 
 	for DOI in DOIs:
 		combined_process_paper(graph, DOI, cr)
@@ -773,7 +773,7 @@ for i in range(len(options)):
 
 program = options[int(input("Enter option number: "))]
 
-data = DOIs[::1]
+data = DOIs[::100]
 total = len(data)
 counter = 1
 

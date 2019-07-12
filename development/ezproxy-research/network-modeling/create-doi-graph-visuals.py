@@ -7,6 +7,12 @@ from os import listdir
 from os.path import isfile, join
 from halo import Halo
 
+#Get vertex by id
+def find_vertex_by_id(item_id, graph):
+	for v in graph.get_vertices():
+		if graph.vp.id[v] == item_id:
+			return graph.vertex(v)
+
 # Find max members item
 def find_max_member_item(graph):
 	m = 0
@@ -269,10 +275,69 @@ def graphviz_routine(graph):
 
 
 graph = get_graph_from_folder()
-#graph = clear_empty_vertices(graph)
+# #graph = clear_empty_vertices(graph)
 graph = extract_largest_component(graph, directed = False, prune = True)
-#graph = add_size_by_type(graph)
-plain_visual_routine(graph)
+
+v = find_vertex_by_id("3304", graph)
+
+categories = ['subject', 'journal', 'paper', 'author']
+
+item_cat = graph.new_vertex_property("boolean")
+graph.vp.cat = item_cat
+
+for vertex in graph.vertices():
+	print(graph.vp.type[vertex])
+	if graph.vp.type[vertex] == 0:
+		if graph.vp.id[vertex] == "3304":
+			graph.vp.cat[vertex] = True
+			continue
+	elif graph.vp.type[vertex] == 1:
+		for parent in vertex.out_neighbors():
+			if graph.vp.id[parent] == "3304":
+				graph.vp.cat[vertex] = True
+				continue
+	elif graph.vp.type[vertex] == 2:
+		for parent in vertex.out_neighbors():
+			for pparent in parent.out_neighbors():
+				if graph.vp.id[pparent] == "3304":
+					graph.vp.cat[vertex] = True
+					continue
+	elif graph.vp.type[vertex] == 3:
+		for parent in vertex.out_neighbors():
+			for pparent in parent.out_neighbors():
+				for ppparent in pparent.out_neighbors():
+					if graph.vp.id[ppparent] == "3304":
+						graph.vp.cat[vertex] = True
+						continue
+	graph.vp.cat[vertex] = False
+
+g = GraphView(graph, vfilt = graph.vp.cat)
+
+
+# state = minimize_nested_blockmodel_dl(graph, deg_corr = True)
+# draw_hierarchy(state, output = "./tmp/nested_mdl_combined_3000.png")
+
+from numpy import sqrt
+
+g = graph
+deg = g.degree_property_map("in")
+deg.a = 4 * (sqrt(deg.a) * 0.5 + 0.4)
+ebet = betweenness(g)[1]
+ebet.a /= ebet.a.max() / 10.
+eorder = ebet.copy()
+eorder.a *= -1
+#pos = sfdp_layout(g)
+pos = graphviz_draw(g, vsize=deg, overlap=False, output=None)
+control = g.new_edge_property("vector<double>")
+for e in g.edges():
+	d = sqrt(sum((pos[e.source()].a - pos[e.target()].a) ** 2)) / 5
+	control[e] = [0.3, d, 0.7, d]
+graph_draw(g, pos=pos, vertex_size=deg, vertex_fill_color=g.vp.type, vorder=deg,
+               	edge_color=ebet, eorder=eorder, edge_pen_width=ebet,
+              	edge_control_points=control, # some curvy edges
+             	output="./tmp/graph-draw-3.png")
+
+#special_visual_routine(graph)
 
 # with Halo(text='Drawing Fruchterman Reingold...', text_color = "green", spinner='dots'):
 # 	pos = fruchterman_reingold_layout(graph, n_iter=1000)
