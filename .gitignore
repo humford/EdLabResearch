@@ -14,6 +14,7 @@ config.py
 # Generated Files
 tmp/
 output/
+node_modules/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
