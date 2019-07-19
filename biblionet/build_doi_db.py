@@ -1,25 +1,31 @@
 # Import Configuration
-from .config import config
+from config import config
 
 output_dir = config["OUTPUT"]["DIRECTORY"]
 output_db = config["OUTPUT"]["DATABASE"]
 crossref_email = config["API"]["CROSSREF_EMAIL"]
 
 # Import Internal
-from .db_utils import *
-from .doi_utils import *
+from db_utils import *
+from doi_utils import *
 
 # Import External
+from timeit import default_timer as timer
 
+start = timer()
+end = timer()
+print(f"X takes {end - start} seconds to run.")
 
 # MAIN
+
+# SUBJECTS
+
+# USERS
+
+# BUILDING ENTRIES
 def get_DOI_links(data, web_resources):
 	DOI_links = {}
 	index = 1
-	unique = []
-	for item in data:
-		unique.append(item[0])
-	data = list(set(unique))
 
 	for link in data:
 		parsed_link = urlparse(link)
@@ -31,41 +37,87 @@ def get_DOI_links(data, web_resources):
 		index += 1
 	return DOI_links
 
-def insert_entry(DOI_link, sqlite_cursor):
+def insert_entry(DOI_link, cursor, mode):
 	try:
 		DOI_response = json.dumps(xmltodict.parse(requests.get(DOI_link).content))
 	except:
 		DOI_response = json.dumps({})
 
-	title = title_from_link(DOI_link)
 	DOI = DOI_from_link(DOI_link)
+	links = {"application/pdf" : None, "application/xml" : None, "unspecified" : None}
 
 	if DOI:
-		sqlite_cursor.execute("SELECT * FROM ezproxy_doi WHERE doi = ?", (DOI, ))
-		cache = sqlite_cursor.fetchone()
+		title = title_from_DOI(DOI)
+			
+		if mode == "sqlite": cursor.execute("SELECT ezproxy_doi_id FROM ezproxy_doi WHERE doi = ?", (DOI, ))
+		elif mode == "mysql": cursor.execute("SELECT id FROM ezproxy_doi_items WHERE doi = %s", (DOI, ))
+		cache = cursor.fetchone()
 		if cache:
 			print(f"Item {DOI} found in cache.")
-			return
+			return cache[0]
+	else:
+		title = title_from_link(DOI_link)
+		
+	if mode == "sqlite":
+		DOI_entry = (title, DOI, DOI_link, DOI_response, links["application/pdf"], links["application/xml"], links["unspecified"])
+		cursor.execute("INSERT INTO ezproxy_doi VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)", DOI_entry)
+		cursor.execute("SELECT last_insert_rowid()")
+		item_id = cursor.fetchone()[0]
+	elif mode == "mysql":
+		DOI_entry = (title, DOI, DOI_link)
+		cursor.execute('''INSERT INTO ezproxy_doi_items
+			(id, title, doi, doi_link) VALUES (NULL, %s, %s, %s)
+		''', DOI_entry)
+		cursor.execute("SELECT LAST_INSERT_ID()")
+		item_id = cursor.fetchone()[0]
 
-	DOI_entry = (title, DOI, DOI_link, DOI_response)
-	sqlite_cursor.execute("INSERT INTO ezproxy_doi VALUES (NULL, ?, ?, ?, ?)", DOI_entry)
 	print(f"Item {DOI} inserted.")
+	return item_id
 
-def convert_all(web_resources, mysql_cursor, sqlite_cursor):
-	setup_output_db(sqlite_cursor)
-
-	mysql_cursor.execute("SELECT address FROM ezporxy_spu")
+def add_all_items_to_db(web_resources, mysql_cursor, sqlite_cursor, mysql_conn, sqlite_conn, mode):
+	mysql_cursor.execute("SELECT address FROM ezproxy_spu_doi")
 	data = mysql_cursor.fetchall()
+
+	unique = []
+	for item in data:
+		unique.append(item[0])
+	data = list(set(unique))
+
 	DOI_links = get_DOI_links(data, web_resources)
 
 	index = 1
-	for DOI_link in DOI_links.values():
-		print(DOI_link)
+	for address in DOI_links:
+		DOI_link = DOI_links[address]
 		if DOI_link:
-			insert_entry(DOI_link, sqlite_cursor)
+			if mode == "sqlite":
+				item_id = insert_entry(DOI_link, sqlite_cursor, "sqlite")
+			elif mode == "mysql":
+				item_id = insert_entry(DOI_link, mysql_cursor, "mysql")
+				if item_id:
+					mysql_cursor.execute("UPDATE ezproxy_spu_doi SET ezproxy_doi_id = %s WHERE address = %s", (item_id, address))
+				mysql_conn.commit()
 			print(f"Link {index} of {len(DOI_links.values())} processed.")
 		else:
 			print(f"Link {index} of {len(DOI_links.values())} is blank, skipping.")
 		index += 1
+	return DOI_links
 
-	return
+# Build database routine
+def doi_db_routine(mode = "sqlite"):
+	ezproxy_conn = connect_to_ezproxy_db()
+	ezproxy_cursor = ezproxy_conn.cursor()
+	if mode == "sqlite":
+		sqlite_conn = connect_to_output_db()
+		sqlite_cursor = sqlite_conn.cursor()
+		setup_output_db(sqlite_cursor)
+		DOI_links = add_all_items_to_db(web_resources, ezproxy_cursor, sqlite_cursor, mode)
+	elif mode == "mysql":
+		setup_ezproxy_items_table(ezproxy_cursor)
+		DOI_links = add_all_items_to_db(web_resources, ezproxy_cursor, None, ezproxy_conn, None, mode)
+
+	print("Saving database...")
+	ezproxy_conn.commit()
+	ezproxy_conn.close()
+	print("Saved.")
+		
+doi_db_routine("mysql")

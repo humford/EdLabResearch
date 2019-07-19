@@ -1,5 +1,5 @@
 # Import Configuration
-from .config import config
+from config import config
 
 output_dir = config["OUTPUT"]["DIRECTORY"]
 

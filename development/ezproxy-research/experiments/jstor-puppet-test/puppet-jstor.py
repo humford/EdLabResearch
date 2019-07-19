@@ -13,22 +13,50 @@ def get_ezproxy_db():
 	)
 	return researchdb
 
-def get_DOI_JSTOR(JSTOR_link):
+# def get_DOI_JSTOR(JSTOR_link):
+# 	response = muterun_js("puppet-jstor.js", JSTOR_link)
+# 	if response.exitcode == 0:
+# 		soup= BeautifulSoup(response.stdout, "html.parser")
+# 		print(soup.prettify())
+# 		doi_div = soup.find("div", class_="doi")
+# 		possible = re.search(r"DOI: (.*)", doi_div.text)
+# 		if possible:
+# 			return possible.group(1)
+# 		else:
+# 			return None
+# 	else:
+# 		#Want to actually retry
+# 		return None
+# 		#sys.stderr.write(response.stderr)
+
+def get_DOI_JSTOR(JSTOR_link, attempt = 1):
 	response = muterun_js("puppet-jstor.js", JSTOR_link)
 
 	if response.exitcode == 0:
-		soup= BeautifulSoup(response.stdout, "html.parser")
-		print(soup.prettify())
-		doi_div = soup.find("div", class_="doi")
-		possible = re.search(r"DOI: (.*)", doi_div.text)
-		if possible:
-			return possible.group(1)
+		soup = BeautifulSoup(response.stdout, "html.parser")
+		captcha = soup.find(id = "g-recaptcha-response")
+		if not captcha:
+			doi_div = soup.find("div", class_="doi")
+			if doi_div:	
+				possible = re.search(r"DOI: (.*)", doi_div.text)
+				if possible:
+					print("JSTOR DOI Found: " + possible.group(1))
+					return possible.group(1)
+				else:
+					return None
+			else:
+				return None
+		elif attempt < 5:
+			print("JSTOR captcha, retrying...")
+			return get_DOI_JSTOR(JSTOR_link, attempt + 1)
 		else:
 			return None
+	elif attempt < 5:
+		print("No JSTOR response, retrying...")
+		return get_DOI_JSTOR(JSTOR_link, attempt + 1)
 	else:
-		#Want to actually retry
 		return None
-		#sys.stderr.write(response.stderr)
+
 
 def get_JSTOR_links(mysql_cursor):
 	mysql_cursor.execute("SELECT address FROM ezporxy_spu WHERE web = \"www.jstor.org\"")
