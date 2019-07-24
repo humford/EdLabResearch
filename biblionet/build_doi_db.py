@@ -75,13 +75,18 @@ def insert_entry(DOI_link, cursor, mode):
 	return item_id
 
 def add_all_items_to_db(web_resources, mysql_cursor, sqlite_cursor, mysql_conn, sqlite_conn, mode):
-	mysql_cursor.execute("SELECT address FROM ezproxy_spu_doi")
-	data = mysql_cursor.fetchall()
+	mysql_cursor.execute("SELECT DISTINCT(address) FROM ezproxy_spu_doi")
+	data = [item[0] for item in mysql_cursor.fetchall()]
 
-	unique = []
-	for item in data:
-		unique.append(item[0])
-	data = list(set(unique))
+	mysql_cursor.execute("SELECT DISTINCT(address) FROM ezproxy_spu_doi WHERE ezproxy_doi_id IS NOT NULL")
+	subtract = [item[0] for item in mysql_cursor.fetchall()]
+
+	data = [item for item in data if item not in subtract]
+
+	# unique = []
+	# for item in data:
+	# 	unique.append(item[0])
+	# data = list(set(unique))
 
 	DOI_links = get_DOI_links(data, web_resources)
 

@@ -9,6 +9,7 @@ from db_utils import *
 # Import External
 import re
 import requests
+from requests.exceptions import HTTPError
 from habanero import Crossref
 import xmltodict
 from urllib.parse import urlparse, parse_qsl, urlencode
@@ -149,7 +150,10 @@ def title_from_link(DOI_link):
 # Title from DOI
 def title_from_DOI(DOI):
 	cr = Crossref(mailto = crossref_email)
-	response = cr.works(ids = DOI)
+	try:
+		response = cr.works(ids = DOI)
+	except HTTPError:
+		return None
 	if "message" in response:
 		if "title" in response["message"]:
 			if response["message"]["title"]:
